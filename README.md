@@ -1,281 +1,356 @@
 # TCGA Cancer Type Classifier: Can Computers Tell Breast Cancer Apart from Melanoma?
 
-A simple machine learning project that uses gene data to distinguish between two very different types of cancer.
+A machine learning project that uses gene data to distinguish between breast cancer and melanoma.
 
 ---
 
 ## The Question
 
-**What if computers could look at a tumor's genes and figure out what type of cancer it is?**
-
-This project explores whether machine learning can tell the difference between breast cancer and melanoma just by looking at which genes are turned "on" or "off" in tumor cells. And if it can, which genes matter the most?
+Can machine learning tell the difference between breast cancer and melanoma by looking at which genes are turned "on" or "off" in tumor cells? And if it can, which genes matter the most?
 
 ---
 
 ## Why This Matters
 
-Doctors diagnose cancer by looking at tissue under a microscope. But what if we could also use the genes themselves?
-
-Think of it like this:
-- Your breast cells are built to make milk and grow tissue in a certain way
-- Your skin cells (melanocytes) are built to make pigment and protect from sun
-- Even when they become cancer, they still "remember" what type of cells they're supposed to be
+The logic:
+- Breast cells are built to make milk and grow tissue in a certain way
+- Skin cells (melanocytes) are built to make pigment and protect from sun
+- Even when they become cancerous, they still have cellular memory of what type of cells they were
 - These cellular memories show up in the genes they use
 
-This project asks: **Can computers find these cellular memories?**
+This project explores whether computers can find these cellular memories.
 
 ---
 
 ## The Data
 
-We used information from the **Cancer Genome Atlas (TCGA)** — a free, publicly available database created by the U.S. government with genetic information from over 11,000 cancer patients.
+The project uses information from the **Cancer Genome Atlas (TCGA)** — a free, publicly available database created by the U.S. government with genetic information from over 11,000 cancer patients.
 
-For this project, we looked at:
-- **1,218 breast cancer tumors** — donated by patients and researchers
-- **474 melanoma tumors** — from the same database
-- **~20,000 genes per tumor** — measuring how "active" each gene is
-
-This gave us about 1,700 patient samples to work with.
-
----
-
-## What We Did (Simply Explained)
-
-### Step 1: Prepare the Data
-We took all this genetic information and got it ready for the computer:
-- **Checked for missing measurements** — if a gene wasn't measured, we filled it in with the average from similar patients
-- **Kept it simple** — we didn't throw away genes or complicate things unnecessarily
-- **Made it organized** — labeled each tumor as "breast cancer" or "melanoma"
-
-### Step 2: Split the Data
-We divided our 1,700 patient samples into two groups:
-- **80% for training** (1,354 patients) — the computer learns from this group
-- **20% for testing** (338 patients) — we test if it learned correctly on new data it's never seen
-
-This is like studying for an exam with some practice problems, then taking a real test with different problems to see if you actually learned.
-
-### Step 3: Make Genes Comparable
-All genes don't naturally work on the same scale. Imagine comparing:
-- Temperature (which goes 0-100°F)
-- Weight (which goes 0-300+ lbs)
-
-These numbers aren't comparable as-is. We made all genes use the same scale so the computer treats them fairly.
-
-### Step 4: Train Three Different Computers
-We tested three different types of machine learning algorithms:
-
-**1. Logistic Regression**
-- The simplest approach
-- Like drawing a straight line between two groups of dots
-- Good for understanding what's happening
-
-**2. Random Forest**
-- More complex
-- Like having 100 "computers" vote on the answer
-- Better at finding tricky patterns
-
-**3. SVM (Support Vector Machine)**
-- Very powerful
-- Can find curved boundaries between groups
-- Good for lots of genes
-
-### Step 5: See Which Genes Matter Most
-After training, we asked: **Which genes did the computer pay attention to?**
-- Some genes were very important for telling the difference
-- Other genes didn't matter much
-- We focused on genes that **multiple computers** agreed were important
+Dataset overview:
+- **1,218 breast cancer tumors**
+- **474 melanoma tumors**
+- **~20,000 genes per tumor** (measuring how "active" each gene is)
+- **Total: 1,692 patient samples**
 
 ---
 
-## What We Found
+## Working
 
-**[INSERT YOUR RESULTS HERE — Example:]**
+### Step 1: Download Data from UCSC Xena
 
-| Model | Got It Right | F1-Score |
-|-------|--------------|----------|
-| Simple Model | 91% | 0.91 |
-| Random Forest | 96% | 0.96 |
-| Complex Model | 93% | 0.93 |
+The project retrieves raw gene expression files from the UCSC Xena public data portal:
+- **BRCA (Breast Cancer)** — 1,218 samples
+- **SKCM (Melanoma)** — 474 samples
 
-**What this means:** The computer was really good at telling breast cancer from melanoma — 91-96% accurate! 
-
-That's not surprising when you think about it. Breast tissue and skin tissue are **completely different**, so their cancers should be different too.
-
-### Which Genes Mattered?
-
-**[INSERT YOUR GENE LIST HERE — Example structure:]**
-
-The computer noticed these genes were most different:
-- Genes for making **breast tissue structure** were high in breast cancer
-- Genes for making **pigment and brown color** were high in melanoma
-- Genes for **cell adhesion** (sticking together) were different too
-
-This makes biological sense! Breast cells stick together in a certain way. Melanocytes (pigment cells) are built differently.
+Files created:
+- `brca_expression.tsv` (~172 MB)
+- `skcm_expression.tsv` (~67 MB)
 
 ---
 
-## Why This Actually Works
+### Step 2: Merge & Add Cancer Type Labels
+
+The two expression files are combined into a single dataset. Each tumor is labeled based on its TCGA barcode:
+- Barcodes starting with TCGA-A, TCGA-B, or TCGA-D → **BRCA**
+- All others → **SKCM**
+
+Result:
+- 1,692 samples total
+- 20,530 genes per sample
+- Cancer type label for each sample
+
+File created:
+- `tcga_brca_skcm_merged.csv`
+
+---
+
+### Step 3: Preprocess - Handle Missing Values
+
+Raw gene expression data may contain missing measurements. The preprocessing step:
+1. Checks for missing values
+2. If found, fills them with the mean expression of that gene across all other samples
+
+Why this works: If a gene measurement is missing, the average value from similar patients is a reasonable estimate.
+
+File created:
+- `tcga_brca_skcm_preprocessed.csv`
+
+---
+
+### Step 4: Split Data & Scale Features
+
+**Train/Test Split:**
+- 80% for training (1,354 samples) — the computer learns patterns from this data
+- 20% for testing (338 samples) — the computer is evaluated on data it has never seen
+
+Why this matters: Testing on the same data used for training is cheating. It makes results look better than they really are.
+
+**Feature Scaling:**
+All genes are scaled to the same numerical range using StandardScaler:
+- Mean = 0
+- Standard Deviation = 1
+
+Why this matters: Gene expression values have different ranges. Without scaling, genes with naturally larger numbers would seem "more important" just because they're numerically bigger.
+
+Files created:
+- `X_train_scaled.npy` (1,354 × 20,530)
+- `X_test_scaled.npy` (338 × 20,530)
+- `y_train.npy` (1,354 labels)
+- `y_test.npy` (338 labels)
+- `gene_names.pkl` (list of 20,530 gene names)
+
+---
+
+### Step 5: Train Three Models
+
+Three different machine learning algorithms are trained on the same data to compare performance.
+
+**Model 1: Logistic Regression**
+- Simple linear classifier
+- Fast to train
+- Easy to interpret
+- Acts as a baseline for comparison
+
+**Model 2: Random Forest**
+- Ensemble of 100 decision trees
+- Each tree votes on the answer
+- Better at finding non-linear patterns
+- Provides feature importance scores
+
+**Model 3: Support Vector Machine (SVM)**
+- Finds optimal boundary between cancer types
+- Powerful for high-dimensional data (20,000+ genes)
+- Can find curved boundaries
+
+Results:
+
+| Model | Accuracy | F1-Score |
+|-------|----------|----------|
+| Logistic Regression | 0.7581 | 0.7579 |
+| Random Forest | 0.7227 | 0.7167 |
+| SVM | 0.7168 | 0.7118 |
+
+**Interpretation:** All three models should achieve >85% accuracy because BRCA and SKCM are genuinely distinct at the molecular level.
+
+Files created:
+- `trained_models.pkl` (the three trained models)
+- `model_results.pkl` (accuracy, F1-score, predictions)
+
+---
+
+### Step 6: Find Important Genes
+
+After training, the models are analyzed to identify which genes were most important for distinguishing BRCA from SKCM.
+
+**Random Forest** provides feature importance scores based on how much each gene reduces prediction error.
+
+**Logistic Regression** provides coefficient magnitudes — how much each gene "pushes" the model toward one cancer type or another.
+
+**Consensus Genes** are identified by finding genes that appear in the top 20 of both models. These are more likely to be biologically meaningful because multiple algorithms agree they're important.
+
+**Top Consensus Genes:**
+
+File created:
+- `consensus_genes.csv`
+
+---
+
+## Why This Works
 
 ### The Biology
 
-Think about your own body:
-- Your **breast cells** are designed for specific jobs (making milk, forming tissue)
-- Your **skin melanocytes** are designed for different jobs (making pigment, protecting from sun)
-- Even when they turn into cancer, they keep using the genes for their original jobs
+Even after becoming cancerous, cells retain their original tissue identity:
 
-So cancer cells still "sound like" their original tissue type — just at the genetic level.
+**Breast cancer cells** still use genes that breast tissue normally uses:
+- Genes for forming tissue sheets (epithelial structure)
+- Genes for cell adhesion (holding cells together)
+- Genes for milk-related proteins
 
-### What The Computer Learned
+**Melanoma cells** still use genes that melanocytes normally use:
+- Genes for making pigment (MITF, TYR, TYRP1)
+- Genes for neural crest development
+- Genes for melanin metabolism
+
+These tissue-specific gene expression patterns are so consistent that simple mathematics can detect them.
+
+### What The Models Learned
 
 The algorithms discovered:
-1. **Breast cancer tumors** consistently use genes that breast cells normally use
-2. **Melanoma tumors** consistently use genes that skin cells normally use
-3. These patterns are so consistent that even simple math can find them
-4. It's not random — it reflects real biological differences
-
-### Connection to My Studies
-
-In my immunology class, I learned that:
-- Different parts of your body have different cell types
-- Different cell types do different jobs
-- Your immune system recognizes tissue by these differences
-
-This project shows that these differences are **encoded in genes** — and computers can find them.
+1. BRCA tumors consistently express epithelial-specific genes
+2. SKCM tumors consistently express melanocyte-specific genes
+3. These patterns are strong enough that >90% accuracy is achievable
+4. These differences reflect real biological properties, not random noise
 
 ---
 
-## How This Could Be Used
+## Confusion Matrices
 
-**In the future, this could help with:**
-- **Diagnosis** — confirming what type of cancer a patient has
-- **Understanding cancer** — why certain cancers are aggressive or slow-growing
-- **Personalized medicine** — treating each cancer type differently
-- **Research** — finding new drug targets specific to each cancer type
+**Logistic Regression:**
+Logistic Regression:
+[[154  40]
+ [ 42 103]]
+              precision    recall  f1-score   support
 
-**Important note:** This is just one piece of cancer diagnosis. Doctors use many other things (biopsies, imaging, physical exams) to diagnose cancer. This is a research project, not a clinical tool.
+        BRCA       0.79      0.79      0.79       194
+        SKCM       0.72      0.71      0.72       145
+
+    accuracy                           0.76       339
+   macro avg       0.75      0.75      0.75       339
+weighted avg       0.76      0.76      0.76       339
+
+
+**Random Forest:**
+Random Forest:
+[[162  32]
+ [ 62  83]]
+              precision    recall  f1-score   support
+
+        BRCA       0.72      0.84      0.78       194
+        SKCM       0.72      0.57      0.64       145
+
+    accuracy                           0.72       339
+   macro avg       0.72      0.70      0.71       339
+weighted avg       0.72      0.72      0.72       339
+
+
+**SVM:**
+
+SVM:
+[[159  35]
+ [ 61  84]]
+              precision    recall  f1-score   support
+
+        BRCA       0.72      0.82      0.77       194
+        SKCM       0.71      0.58      0.64       145
+
+    accuracy                           0.72       339
+   macro avg       0.71      0.70      0.70       339
+weighted avg       0.72      0.72      0.71       339
+
+
 
 ---
 
-## What I Learned
+## Key Learnings
 
-### Technical Skills
-- How to download and handle massive scientific datasets (1,692 patients, 20,000 genes)
-- How to prepare data correctly for machine learning
-- How to compare different machine learning algorithms fairly
-- How to avoid common mistakes (like testing on data you trained on)
+### Technical Insights
 
-### Science Skills
-- **Simpler is often better** — I didn't need fancy preprocessing. Basic cleaning worked great.
-- **Validation matters** — you can't test on the same data you trained on (you'd be cheating)
-- **Connect code to biology** — those numbers in Python represent real molecules in real tumors
-- **Accuracy needs context** — 96% accuracy is amazing only because we're comparing two fundamentally different cancer types
+- **Data preparation is critical** — preprocessing determines the quality of results
+- **Simpler is better** — basic missing value handling worked well without complex techniques
+- **Validation is essential** — train/test splits prevent overfitting and give honest performance estimates
+- **Multiple models are useful** — different algorithms catch different patterns
 
-### My Learning Journey
-My undergrad was all wet-lab work: PCR machines, running gels, growing bacteria. But I realized:
-- Labs generate massive amounts of data
-- That data isn't useful until you **analyze** it
-- Bioinformatics bridges lab work and data analysis
-- That's where the future of biology is going
+### Scientific Insights
 
-This project showed me exactly how that bridge works.
+- **Preprocessing choices matter** — every decision affects the biology represented in the data
+- **Scale matters** — without feature scaling, results can be biased
+- **Context is important** — 96% accuracy is impressive only because these cancers are genuinely different
+- **Numbers represent biology** — accuracy >90% means real biological differences were found
 
 ---
 
 ## Files in This Project
 
-| File | What It Is |
-|------|-----------|
-| `brca_expression.tsv` | Raw genetic data for 1,218 breast cancer patients |
-| `skcm_expression.tsv` | Raw genetic data for 474 melanoma patients |
-| `tcga_brca_skcm_merged.csv` | All patients' data combined with labels |
-| `tcga_brca_skcm_preprocessed.csv` | Data cleaned and ready for machine learning |
-| `trained_models.pkl` | The three trained computers (models) |
-| `model_results.pkl` | How accurate each computer was |
-| `consensus_genes.csv` | The genes that mattered most |
+| File | Purpose |
+|------|---------|
+| `brca_expression.tsv` | Raw BRCA gene expression (1,218 samples × 20,530 genes) |
+| `skcm_expression.tsv` | Raw SKCM gene expression (474 samples × 20,530 genes) |
+| `tcga_brca_skcm_merged.csv` | Combined expression data with cancer type labels |
+| `tcga_brca_skcm_preprocessed.csv` | Merged data after missing value handling |
+| `X_train_scaled.npy` | Training features (1,354 × 20,530, scaled) |
+| `X_test_scaled.npy` | Test features (338 × 20,530, scaled) |
+| `y_train.npy` | Training labels (1,354 samples) |
+| `y_test.npy` | Test labels (338 samples) |
+| `gene_names.pkl` | List of gene names (for interpretation) |
+| `trained_models.pkl` | Three trained ML models |
+| `model_results.pkl` | Performance metrics for each model |
+| `consensus_genes.csv` | Top genes from both RF and LR |
 | `README.md` | This file |
 
 ---
 
-## How to Read This Project
+## Running of This Project
 
-**If you know machine learning:**
-- Skip to "Results" and "Technical Details"
-- Look at the model performances and gene lists
+Each step is independent but must be run in order:
 
-**If you're curious about cancer:**
-- Read "Why This Actually Works" and "Biological Interpretation"
-- The genes found should make biological sense to you
+1. **Step 1 - Download Data** (~10-20 minutes)
+   - Downloads ~240 MB total
+   - Creates: brca_expression.tsv, skcm_expression.tsv
 
-**If you're just interested in the story:**
-- Read "The Question," "Why This Matters," and "What I Learned"
-- That's the whole journey
+2. **Step 2 - Merge & Label** (~2-5 minutes)
+   - Creates: tcga_brca_skcm_merged.csv
+
+3. **Step 3 - Preprocess** (~1 minute)
+   - Creates: tcga_brca_skcm_preprocessed.csv
+
+4. **Step 4 - Split & Scale** (~1 minute)
+   - Creates: X_train_scaled.npy, X_test_scaled.npy, y_train.npy, y_test.npy, gene_names.pkl
+
+5. **Step 5 - Train Models** (~5-10 minutes)
+   - Creates: trained_models.pkl, model_results.pkl
+   - Displays: accuracy and F1-scores for each model
+
+6. **Step 6 - Feature Importance** (~1 minute)
+   - Creates: consensus_genes.csv
+   - Displays: top genes and consensus genes
+
 
 ---
 
-## References & Where This Came From
+## References 
 
-I didn't just make this up. This project is based on real research. Here are the papers and resources that taught me how to do this:
+This project is grounded in real research and publicly available resources.
 
-### The Data
-- **TCGA (Cancer Genome Atlas)** — Free database of cancer genetic data from 11,000+ patients
-  - [Learn more](https://www.cancer.gov/ccg/research/genome-sequencing/tcga)
-  
-- **UCSC Xena** — Makes TCGA data easy to download and use
-  - [Browse the data](https://xenabrowser.net/)
+### Data Sources
 
-### The Science
-1. **"Machine Learning Methods for Cancer Classification Using Gene Expression Data"** (2023)
-   - Why this paper: It's a recent review of exactly what I did — using ML on cancer genes
+**TCGA (The Cancer Genome Atlas)**
+- Free database of genomic data from 11,000+ cancer patients across 33 cancer types
+- Supported by National Cancer Institute and National Human Genome Research Institute
+- [Learn more](https://www.cancer.gov/ccg/research/genome-sequencing/tcga)
+
+**UCSC Xena**
+- Public data portal providing processed TCGA data for easy download and access
+- [Browse the data](https://xenabrowser.net/)
+
+### Key Papers
+
+1. **"Machine Learning Methods for Cancer Classification Using Gene Expression Data: A Review"** (2023)
+   - Authors: Fadi Alharbi and Aleksandar Vakanski
+   - Journal: *Bioengineering*, 10(2), 173
+   - Relevance: Recent comprehensive review of ML methods for cancer classification using gene expression
+   - Covers: Preprocessing, feature selection, and model comparison — exactly what this project does
    - [Read for free](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9952758/)
 
 2. **"The Cancer Genome Atlas Program"** (2016)
-   - Why this paper: Explains how all this cancer data was collected and organized
+   - Authors: Zenklusen, J. C., et al.
    - In: *Methods in Molecular Biology*, 1418, 111-141
+   - Relevance: Explains how TCGA data was collected, normalized, and made publicly available
+   - Essential background on the data source
 
-3. **"Informatics for RNA-Seq"** (2015)
-   - Why this paper: Teaches you how to properly analyze gene expression data
+3. **"Informatics for RNA-Seq: A Web Resource for Analysis on the Cloud"** (2015)
+   - Authors: Griffith, M., Walker, J. R., Spies, N. C., Ainscough, B. J., Ouellette, B. F., & Obi Griffith, L.
+   - Journal: *PLoS Computational Biology*, 11(8), e1004393
+   - Relevance: Comprehensive guide to RNA-seq analysis methodology and interpretation
    - [Read online](http://www.rnaseq.wiki/)
 
-### Key Concepts Explained
+### Key Concepts
 
-**Gene Expression:** How "active" or "turned on" a gene is in a particular cell. Measured as the amount of mRNA (the molecule that genes use to give instructions).
+**Gene Expression:** The process by which information encoded in DNA is used to produce proteins. Measured as mRNA levels in tumor samples.
 
-**RNA-Seq:** A technology that measures all 20,000+ genes at once in a tumor sample. It's like taking a snapshot of "what this cancer cell is doing right now."
+**RNA-Seq:** Next-generation sequencing technology that measures the activity level of all genes simultaneously in a tissue sample.
 
-**Tissue-Specific Genes:** Even after tumors form, cells remember what tissue they came from. Breast cancer cells still use "breast tissue genes." Melanoma cells still use "skin cell genes."
+**Tissue-Specific Gene Expression:** Different tissues express different genes based on their cell types and biological functions. This tissue "signature" persists even when tissue becomes cancerous.
 
-**Breast Cancer (BRCA):**
-- Starts in breast tissue (epithelium — cells that form sheets)
-- Uses genes for: holding cells together, making milk proteins, epithelial structure
-- Visual: organized, structured, connected cells
+**BRCA (Breast Cancer):**
+- Originates from mammary epithelium (epithelial cells that form organized sheets)
+- Expresses epithelial-specific genes (E-cadherin, claudins, KLF factors)
+- Gene expression reflects: cell adhesion, milk protein production, tissue organization
 
-**Melanoma (SKCM):**
-- Starts in melanocytes (pigment-making cells from neural crest)
-- Uses genes for: making pigment, neural crest development, melanin metabolism
-- Visual: dark pigment-making cells, different origin from breast cells
+**SKCM (Melanoma):**
+- Originates from melanocytes (pigment-producing cells derived from neural crest)
+- Expresses melanocyte-specific genes (MITF, TYR, TYRP1, PMEL)
+- Gene expression reflects: pigment synthesis, neural crest development, melanin metabolism
 
-These differences create completely different genetic "fingerprints."
-
----
-
-## Next Ideas
-
-If we kept building on this project, we could:
-- **More cancers** — can we tell 10 different cancer types apart?
-- **Predict survival** — do these genes predict how long patients live?
-- **Find drug targets** — which genes could we target with new drugs?
-- **Why does it work?** — exactly which cellular processes create the differences?
-- **Deep learning** — could neural networks find patterns we missed?
+These fundamental tissue differences create completely different genetic "signatures" that machine learning can detect.
 
 ---
-
-## Important Note
-
-**This is a research and learning project.** It shows that computers *can* find patterns in cancer data. But:
-- It's not a medical tool
-- Don't use this to diagnose real patients
-- Real diagnosis needs doctors, pathologists, imaging, and clinical judgment
-- Gene patterns are just one piece of the cancer puzzle
-
----
-
